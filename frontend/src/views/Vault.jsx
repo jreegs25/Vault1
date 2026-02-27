@@ -9,16 +9,23 @@ export default function Vault() {
   const [stats, setStats] = useState({ reviewed: 0, flagged: 0, sent: 0 });
   const [composeMatch, setComposeMatch] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
   const cardRefs = useRef([]);
 
   useEffect(() => {
-    getMatches(1, 50).then((data) => {
-      setMatches(data.matches);
-      setCurrentIndex(data.matches.length - 1);
-      cardRefs.current = data.matches.map(() => null);
-      setLoading(false);
-    });
+    getMatches(1, 50)
+      .then((data) => {
+        setMatches(data.matches);
+        setCurrentIndex(data.matches.length - 1);
+        cardRefs.current = data.matches.map(() => null);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError("Could not connect to backend. Is the server running on port 8000?");
+        setLoading(false);
+        console.error(err);
+      });
   }, []);
 
   const swiped = async (direction, match, index) => {
@@ -53,6 +60,7 @@ export default function Vault() {
   };
 
   if (loading) return <div className="vault-loading">Loading The Vault...</div>;
+  if (error) return <div className="vault-loading" style={{ color: "#ff6b6b" }}>{error}</div>;
 
   if (done) {
     return (
