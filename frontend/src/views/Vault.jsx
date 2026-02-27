@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, createRef } from "react";
 import TinderCard from "react-tinder-card";
 import ComposeSheet from "../components/ComposeSheet";
 import { getMatches, flagMatch } from "../api";
@@ -12,13 +12,14 @@ export default function Vault() {
   const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
   const cardRefs = useRef([]);
+  const canSwipe = currentIndex >= 0;
 
   useEffect(() => {
     getMatches(1, 50)
       .then((data) => {
         setMatches(data.matches);
         setCurrentIndex(data.matches.length - 1);
-        cardRefs.current = data.matches.map(() => null);
+        cardRefs.current = data.matches.map(() => createRef());
         setLoading(false);
       })
       .catch((err) => {
@@ -27,6 +28,24 @@ export default function Vault() {
         console.error(err);
       });
   }, []);
+
+  const swipeCard = useCallback(
+    (dir) => {
+      if (canSwipe && cardRefs.current[currentIndex]?.current) {
+        cardRefs.current[currentIndex].current.swipe(dir);
+      }
+    },
+    [canSwipe, currentIndex]
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowLeft") swipeCard("left");
+      if (e.key === "ArrowRight") swipeCard("right");
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [swipeCard]);
 
   const swiped = async (direction, match, index) => {
     setStats((s) => ({ ...s, reviewed: s.reviewed + 1 }));
@@ -88,10 +107,12 @@ export default function Vault() {
       <div className="card-stack">
         {matches.map((match, index) => (
           <TinderCard
-            ref={(el) => (cardRefs.current[index] = el)}
+            ref={cardRefs.current[index]}
             key={match.match_id}
             onSwipe={(dir) => swiped(dir, match, index)}
             preventSwipe={["up", "down"]}
+            swipeRequirementType="position"
+            swipeThreshold={80}
             className="swipe-card-wrapper"
           >
             <div
